@@ -1,0 +1,54 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>Connection String to AMQP Connection String</title>
+  <meta name="description" content="Connection String to AMQP Connection String">
+  <meta name="author" content="Alvaro Videla">
+
+</head>
+
+<body>
+    <h1>Connection String to AMQP Connection String</h1>
+    <p>
+      Paste your Azure Service Bus Connection String and convert it to RabbitMQ's AMQP format.
+    </p>
+    <form id="form">
+        <label for="connection_string">Azure Service Bus Connection String</label><br>
+        <textarea id="connection_string" rows="5" cols="150" name="connection_string">
+
+         </textarea><br>
+         <label for="amqp_connection">Azure Service Bus Connection String</label><br>
+         <textarea id="amqp_connection" rows="5" cols="150" name="amqp_connection">
+         </textarea><br>      
+         <button type="submit">Convert</button>
+    </form>
+</body>
+<script type="text/javascript">
+  // Converts an Azure Connection String like this:
+  //     Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=example-key;SharedAccessKey=Random/Chars/Need/Encoding=;EntityPath=example-entity
+  // to one accepted by the RabbitMQ Shovel Plugin:
+  //     amqps://example-key:Random%2FChars%2FNeed%2FEncoding@example.servicebus.windows.net:5671/?sasl=plain
+  function convertString(event) {
+    var conn_string = document.getElementById('connection_string').value.trim();
+    var kv = conn_string.split(';');
+    var hash = {}
+    for (var i = 0; i < kv.length; i++) {
+      var kv_temp = kv[i].split('=');
+      hash[kv_temp[0]] = kv_temp[1];
+    }
+    
+    var url = new URL(hash['Endpoint']);
+    var host = url.pathname.slice(2, url.pathname.length - 1);
+
+    var amqp_conn = `amqps://${encodeURIComponent(hash['SharedAccessKeyName'])}:${encodeURIComponent(hash['SharedAccessKey'])}@${host}:5671/?sasl=plain`;
+
+    document.getElementById('amqp_connection').value = amqp_conn;
+    event.preventDefault();
+  }
+
+  document.getElementById('form').addEventListener('submit', convertString);
+</script>
+</html>
