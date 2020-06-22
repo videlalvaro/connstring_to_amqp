@@ -65,7 +65,9 @@
     var kv = conn_string.split(';');
     var hash = {}
     for (var i = 0; i < kv.length; i++) {
-      var kv_temp = kv[i].split('=');
+      // see https://stackoverflow.com/questions/4607745/split-string-only-on-first-instance-of-specified-character
+      // we need this because keys are base64 encoded so they end with the = sign
+      var kv_temp = kv[i].split(/=(.+)/);
       hash[kv_temp[0]] = kv_temp[1];
     }
 
