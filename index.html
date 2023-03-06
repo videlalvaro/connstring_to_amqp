@@ -56,27 +56,35 @@
 </body>
 <script src="/jquery-3.5.1.min.js"></script>
 <script type="text/javascript">
-  // Converts an Azure Connection String like this:
-  //     Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=example-key;SharedAccessKey=Random/Chars/Need/Encoding=;EntityPath=example-entity
-  // to one accepted by the RabbitMQ Shovel Plugin:
-  //     amqps://example-key:Random%2FChars%2FNeed%2FEncoding@example.servicebus.windows.net:5671/?sasl=plain
+  /**
+    * Converts an Azure Connection String like this:
+    *     Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=example-key;SharedAccessKey=Random/Chars/Need/Encoding=;EntityPath=example-entity
+    * to one accepted by the RabbitMQ Shovel Plugin:
+    *     amqps://example-key:Random%2FChars%2FNeed%2FEncoding@example.servicebus.windows.net:5671/?sasl=plain
+  **/
+  function convertToAmqp(connectionString) {
+    const regex = /Endpoint=(.*);SharedAccessKeyName=(.*);SharedAccessKey=(.*);EntityPath=(.*)/;
+    const matches = connectionString.match(regex);
+    const endpoint = matches[1];
+    const sharedAccessKeyName = matches[2];
+    const sharedAccessKey = matches[3];
+    const entityPath = matches[4];
+
+    const username = encodeURIComponent(sharedAccessKeyName);
+    const password = encodeURIComponent(sharedAccessKey);
+    const host = endpoint.split(':')[1].substring(2);
+    const port = "5671";
+    const sasl = "plain";
+    const protocol = "amqps";
+
+    const amqpUrl = `${protocol}://${username}:${password}@${host}:${port}/?sasl=${sasl}`;
+    return amqpUrl;
+  }
+
   function convertString(event) {
-    var conn_string = $('#connection_string').val().trim();
-    var kv = conn_string.split(';');
-    var hash = {}
-    for (var i = 0; i < kv.length; i++) {
-      // see https://stackoverflow.com/questions/4607745/split-string-only-on-first-instance-of-specified-character
-      // we need this because keys are base64 encoded so they end with the = sign
-      var kv_temp = kv[i].split(/=(.+)/);
-      hash[kv_temp[0]] = kv_temp[1];
-    }
-
-    var url = new URL(hash['Endpoint']);
-    var host = url.pathname.slice(2, url.pathname.length - 1);
-
-    var amqp_conn = `amqps://${encodeURIComponent(hash['SharedAccessKeyName'])}:${encodeURIComponent(hash['SharedAccessKey'])}@${host}:5671/?sasl=plain`;
-
-    $('#amqp_connection').html(amqp_conn);
+    var connString = $('#connection_string').val().trim();
+    var amqpConn = convertToAmqp(connString);
+    $('#amqp_connection').html(amqpConn);
     event.preventDefault();
   }
 
