@@ -72,7 +72,8 @@
 
     const username = encodeURIComponent(sharedAccessKeyName);
     const password = encodeURIComponent(sharedAccessKey);
-    const host = endpoint.split(':')[1].substring(2).replace('/\/+$/', '');
+    // remove trailing slashes from endpoint
+    const host = endpoint.split(':')[1].substring(2).replace(/\/+$/, '');
     const port = "5671";
     const sasl = "plain";
     const protocol = "amqps";
