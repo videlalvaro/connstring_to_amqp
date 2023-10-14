@@ -37,18 +37,30 @@
           <button type="submit" class="button is-link">Convert</button>
         </div>
       </form><br>
-      <label class="label" for="amqp_connection">RabbitMQ Shovel AMQP Connection String</label>
+      <label class="label" for="amqp_connection">RabbitMQ Shovel AMQP Connection String*</label>
       <pre id="amqp_connection" rows="5" cols="150" name="amqp_connection">
       </pre><br>
       <div class="control">
         <button id="copy-button" class="button is-link" onclick="copyToClipboard">Copy To Clipboard</button>
+      </div>
+      <label class="label" for="amqp_connection_old">RabbitMQ Shovel AMQP Connection String (Pre Erlang 26.0)</label>
+      <pre id="amqp_connection_old" rows="5" cols="150" name="amqp_connection_old">
+      </pre><br>
+      <div class="control">
+        <button id="copy-button-old" class="button is-link" onclick="copyToClipboardOld">Copy To Clipboard</button>
       </div>
     </div>
   </section>
   <section>
     <div class="container">
       <p>
-        You can see the sourcecode on <a href="https://github.com/videlalvaro/connstring_to_amqp">GitHub</a>.
+        <b>*</b> Since <a href="https://www.erlang.org/news/164#ssl">Erlang Version 26.0</a> the SSL library changed the verify option to verify_peer.
+        This means a connection string to Azure Service Bus needs to provide a CA file. 
+        In the meantime here's a compatible connection string, while we research a proper solution for using certificates with the Shovel Plugin.
+      </p>
+      <br>
+      <p>
+        You can see the source code on <a href="https://github.com/videlalvaro/connstring_to_amqp">GitHub</a>.
         Powered By <a href="https://docs.microsoft.com/azure/static-web-apps/?WT.mc_id=website-amqp-alvidela">Azure Static Web Apps</a>.
       </p>
     </div>
@@ -64,7 +76,6 @@
     }
 
     var matches = input.match(regex);
-    console.log(matches[1]);
     return matches[1];
   }
   /**
@@ -72,29 +83,48 @@
     *     Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=example-key;SharedAccessKey=Random/Chars/Need/Encoding=;EntityPath=example-entity
     * to one accepted by the RabbitMQ Shovel Plugin:
     *     amqps://example-key:Random%2FChars%2FNeed%2FEncoding@example.servicebus.windows.net:5671/?sasl=plain
+    * 
+    * Since Erlang Version 26.0 https://www.erlang.org/news/164#ssl The SSL library changed the verify option to verify_peer.
+    * This means a connection string to Azure Service Bus needs to provide a CA file. 
+    * In the meantime here's a compatible connection string, while we research a proper solution for using certificates with the Shovel Plugin.
+    * 
+    *     amqps://example-key:Random%2FChars%2FNeed%2FEncoding@example.servicebus.windows.net:5671/?verify=verify_none
+    * 
   **/
-  function convertToAmqp(connectionString) {
+  function convertToAmqp(connectionString, verify) {
 
     const endpoint = extractPart(connectionString, "Endpoint");
     const sharedAccessKeyName = extractPart(connectionString, "SharedAccessKeyName");
     const sharedAccessKey = extractPart(connectionString, "SharedAccessKey");
-
+    
     const username = encodeURIComponent(sharedAccessKeyName);
     const password = encodeURIComponent(sharedAccessKey);
     // remove trailing slashes from endpoint
     const host = endpoint.split(':')[1].substring(2).replace(/\/+$/, '');
-    const port = "5671";
-    const sasl = "plain";
-    const protocol = "amqps";
 
-    const amqpUrl = `${protocol}://${username}:${password}@${host}:${port}/?sasl=${sasl}`;
+    const port = "5671";
+    const protocol = "amqps";
+    
+    var suffix = "";
+    if (verify) {
+      suffix = `verify=verify_none`;
+    } else {
+      suffix = `sasl=plain`;
+    }
+    
+    
+    const amqpUrl = `${protocol}://${username}:${password}@${host}:${port}/?${suffix}`;
     return amqpUrl;
   }
 
   function convertString(event) {
     var connString = $('#connection_string').val().trim();
-    var amqpConn = convertToAmqp(connString);
-    $('#amqp_connection').html(amqpConn);
+  
+    var amqpConnNew = convertToAmqp(connString, true);
+    $('#amqp_connection').html(amqpConnNew);
+    
+    var amqpConnOld = convertToAmqp(connString, false);
+    $('#amqp_connection_old').html(amqpConnOld);
     event.preventDefault();
   }
 
@@ -107,8 +137,17 @@
     temp.remove();
   }
 
+  function copyToClipboardOld() {
+    var temp = $("<input>");
+    $('body').append(temp);
+    temp.val($("#amqp_connection_old").html().trim()).select();
+    document.execCommand("copy");
+    temp.remove();
+  }
+
   $('#form').submit(convertString);
   $('#copy-button').click(copyToClipboard);
+  $('#copy-button-old').click(copyToClipboardOld);
 </script>
 
 </html>
